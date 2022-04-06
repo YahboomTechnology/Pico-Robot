@@ -8,6 +8,8 @@ Pico robot is a compact and cost-effective educational programmable 2WD smart ca
 * MicroPython programming
 * Two remote control methods: infrared remote control, mobile phone APP Bluetooth remote control
 * A variety of expansion interfaces are reserved: IIC interface, servo interface, GPIO interface.
+# Video
+[View video](https://youtu.be/8ECy5ZWWlCw)
 
 # Required Best Buy Links
 [More Details](https://category.yahboom.net/products/pico-robot)
