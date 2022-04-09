@@ -40,8 +40,8 @@ def tick(timer):
     uart.write(',')
     uart.write(str(w_power))
     uart.write('#')
-#set timer frequency 0.5
-tim.init(freq = 0.5,mode = Timer.PERIODIC,callback = tick)
+#set timer frequency 0.1
+tim.init(freq = 0.1,mode = Timer.PERIODIC,callback = tick)
 
 #define water lamp
 def water():
@@ -110,7 +110,7 @@ def line():
     while dat != b'V#':
         while uart.any() > 0:
             dat = uart.read(2)
-            
+                
         #四路循迹引脚电平状态
         #Four channel tracking pin level status
         # 0 0 X 0
@@ -143,7 +143,7 @@ def line():
         #最左边检测到
         #Leftmost detected
         elif Tracing_1.value() == 0:
-            Motor.Car_Left(100,100)
+            Motor.Car_Run(0,130)
             for i in range(num_leds):
                 pixels.set_pixel(i,0,0,255)
             oled.text('Turn Left', 0, 0)
@@ -152,34 +152,15 @@ def line():
         #最右边检测到
         #Rightmost detected
         elif Tracing_4.value() == 0:
-            Motor.Car_Right(100,100)
+            Motor.Car_Run(130,0)
             for i in range(num_leds):
                 pixels.set_pixel(i,0,255,0)
             oled.text('Turn Right', 0, 0)
-
-        # X 0 1 X
-        #处理左小弯
-        #Deal with small left bend
-        elif Tracing_2.value() == 0 and Tracing_3.value() == 1:
-            Motor.Car_Run(0,100)
-            for i in range(num_leds):
-                pixels.set_pixel(i,0,0,255)
-            oled.text('Left', 0, 0)
-
-        # X 1 0 X  
-        #处理右小弯
-        #Handle small right bend
-        elif Tracing_2.value() == 1 and Tracing_3.value() == 0:
-            Motor.Car_Run(100,0)
-            for i in range(num_leds):
-                pixels.set_pixel(i,0,255,0)
-            oled.text('Right', 0, 0)
-
         # X 0 0 X
         #处理直线
         #Processing line
         elif Tracing_2.value() == 0 and Tracing_3.value() == 0:
-            Motor.Car_Run(200,200)
+            Motor.Car_Run(110,110)
             for i in range(num_leds):
                 pixels.set_pixel(i,255,255,255)
             oled.text('Run', 0, 0)
@@ -250,7 +231,7 @@ def voice():
         oled.text('Sound:', 0, 0)
         oled.text(str(sounds), 50, 0)
         #Control action
-        if sounds > 20000:
+        if sounds > 22000:
             while sounds > 10000:
                 Motor.Car_Stop()
                 sounds = Sound.read_u16()
@@ -304,6 +285,11 @@ def voice():
             sounds = 0
             oled.show()
             oled.fill(0)
+            while sounds > 10000:
+                Motor.Car_Stop()
+                sounds = Sound.read_u16()
+                print(sounds)
+                time.sleep(0.001)
         else:
             Motor.Car_Stop()
             oled.show()
@@ -460,3 +446,4 @@ while True:
         Motor.Car_Stop()
         BZ.duty_u16(0)
     time.sleep(0.01)
+
