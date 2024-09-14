@@ -36,9 +36,9 @@ while True:
     if value != None:
         print(value)
         #display press
-        if value == 64:
+        if value == 1:
             i = 0
-            while value == 64:
+            while value == 1:
                 value = Ir.Getir()
                 Motor.Car_Run(255,255)
                 if times_ > 1:
@@ -80,9 +80,9 @@ while True:
             oled.text('Run', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 7:
+        elif value == 4:
             i = 0
-            while value == 7:
+            while value == 4:
                 value = Ir.Getir()
                 Motor.Car_Left(130,130)
                 if times_ > 1:
@@ -102,9 +102,9 @@ while True:
             oled.text('Left', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 9:
+        elif value == 6:
             i = 8
-            while value == 9:
+            while value == 6:
                 value = Ir.Getir()
                 Motor.Car_Right(130,130)
                 if times_ > 1:
@@ -124,8 +124,8 @@ while True:
             oled.text('Right', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 21:
-            while value == 21:
+        elif value == 5:
+            while value == 5:
                 value = Ir.Getir()
                 BZ.duty_u16(500)
                 BZ.freq(624)
@@ -133,9 +133,9 @@ while True:
             oled.text('Buzzer', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 25:
+        elif value == 9:
             i = 0
-            while value == 25:
+            while value == 9:
                 value = Ir.Getir()
                 Motor.Car_Back(255,255)
                 if times_ > 1:
@@ -177,8 +177,8 @@ while True:
             oled.text('Back', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 12:
-            while value == 12:
+        elif value == 16:
+            while value == 16:
                 value = Ir.Getir()
             for i in range(num_leds):
                 pixels.set_pixel(i,255,0,0)
@@ -186,8 +186,8 @@ while True:
             oled.text('Red', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 24:
-            while value == 24:
+        elif value == 17:
+            while value == 17:
                 value = Ir.Getir()
             for i in range(num_leds):
                 pixels.set_pixel(i,0,255,0)
@@ -195,8 +195,8 @@ while True:
             oled.text('Green', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 94:
-            while value == 94:
+        elif value == 18:
+            while value == 18:
                 value = Ir.Getir()
             for i in range(num_leds):
                 pixels.set_pixel(i,0,0,255)
@@ -204,8 +204,8 @@ while True:
             oled.text('Blue', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 8:
-            while value == 8:
+        elif value == 20:
+            while value == 20:
                 value = Ir.Getir()
             for i in range(num_leds):
                 pixels.set_pixel(i,255,255,0)
@@ -213,8 +213,8 @@ while True:
             oled.text('Yellow', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 28:
-            while value == 28:
+        elif value == 21:
+            while value == 21:
                 value = Ir.Getir()
             for i in range(num_leds):
                 pixels.set_pixel(i,0,255,255)
@@ -222,8 +222,8 @@ while True:
             oled.text('Cyan', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 90:
-            while value == 90:
+        elif value == 22:
+            while value == 22:
                 value = Ir.Getir()
             for i in range(num_leds):
                 pixels.set_pixel(i,255,0,255)
@@ -231,8 +231,8 @@ while True:
             oled.text('Purple', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 66:
-            while value == 66:
+        elif value == 24:
+            while value == 24:
                 value = Ir.Getir()
             for i in range(num_leds):
                 pixels.set_pixel(i,255,255,255)
@@ -240,8 +240,8 @@ while True:
             oled.text('White', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 82:
-            while value == 82:
+        elif value == 25:
+            while value == 25:
                 value = Ir.Getir()
             for i in range(num_leds):
                 pixels.set_pixel(i,100,100,100)
@@ -249,8 +249,8 @@ while True:
             oled.text('White', 0, 0)
             oled.show()
             oled.fill(0)
-        elif value == 74:
-            while value == 74:
+        elif value == 26:
+            while value == 26:
                 value = Ir.Getir()
             for i in range(num_leds):
                 pixels.set_pixel(i,0,0,0)

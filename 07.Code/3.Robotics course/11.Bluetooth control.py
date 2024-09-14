@@ -1,6 +1,13 @@
 import time
 from machine import Pin, I2C, PWM, Timer, UART, ADC
 from pico_car import SSD1306_I2C, pico_car, ws2812b, ultrasonic
+import _thread
+
+g_stop = 0
+
+g_distance = 0
+g_ultrasonic_state = False
+time.sleep(.1)
 
 Motor = pico_car()
 Motor.Car_Stop()
@@ -28,10 +35,14 @@ Sound = machine.ADC(27)
 #define Timer
 tim = Timer()
 def tick(timer):
+    global g_distance, g_ultrasonic_state
     w_power = int(Quantity_of_electricity.read_u16()/65535*240)
     if w_power > 100:
         w_power = 100
-    w_distance = ultrasonic.Distance_accurate()
+    if g_ultrasonic_state:
+        w_distance = g_distance
+    else:
+        w_distance = ultrasonic.Distance()
     w_sounds = int(Sound.read_u16()/65535*200)
     uart.write('$DAT')
     uart.write(str(w_distance))
@@ -40,8 +51,8 @@ def tick(timer):
     uart.write(',')
     uart.write(str(w_power))
     uart.write('#')
-#set timer frequency 0.1
-tim.init(freq = 0.1,mode = Timer.PERIODIC,callback = tick)
+#set timer frequency 0.5
+tim.init(freq = 0.5, mode = Timer.PERIODIC, callback = tick)
 
 #define water lamp
 def water():
@@ -177,12 +188,15 @@ def line():
 #define ultrasonic avoid    
 def avoid():
     global dat
+    global g_ultrasonic_state, g_distance
+    g_ultrasonic_state = True
     oled.fill(0)
     while dat != b'V#':
         while uart.any() > 0:
             dat = uart.read(2)
         #get distance
-        distance = ultrasonic.Distance_accurate()
+        g_distance = ultrasonic.Distance()
+        distance = g_distance
         print("distance is %d cm"%(distance) )
         #display distance
         oled.text('distance:', 0, 0)
@@ -217,8 +231,9 @@ def avoid():
     pixels.fill(0,0,0)
     Motor.Car_Stop()
     BZ.duty_u16(0)
+    g_ultrasonic_state = False
 
-#define ultrasonic voice    
+#define voice
 def voice():
     global dat
     oled.fill(0)
@@ -227,7 +242,7 @@ def voice():
             dat = uart.read(2)
         #get value
         sounds = Sound.read_u16()
-        print(sounds)
+        print("sounds:", sounds)
         oled.text('Sound:', 0, 0)
         oled.text(str(sounds), 50, 0)
         #Control action
@@ -237,6 +252,15 @@ def voice():
                 sounds = Sound.read_u16()
                 print(sounds)
                 time.sleep(0.001)
+                if uart.any() > 0:
+                    dat = uart.read(2)
+                    if dat == b'V#':
+                        pixels.fill(0,0,0)
+                        oled.fill(0)
+                        oled.show()
+                        Motor.Car_Stop()
+                        BZ.duty_u16(0)
+                        return
             Motor.Car_Run(255,255)
             BZ.duty_u16(500)
             BZ.freq(CM[1])
@@ -290,6 +314,15 @@ def voice():
                 sounds = Sound.read_u16()
                 print(sounds)
                 time.sleep(0.001)
+                if uart.any() > 0:
+                    dat = uart.read(2)
+                    if dat == b'V#':
+                        pixels.fill(0,0,0)
+                        oled.fill(0)
+                        oled.show()
+                        Motor.Car_Stop()
+                        BZ.duty_u16(0)
+                        return
         else:
             Motor.Car_Stop()
             oled.show()
@@ -299,151 +332,189 @@ def voice():
     Motor.Car_Stop()
     BZ.duty_u16(0)
 
-while True:
-    #receive data
-    while uart.any() > 0:
-        dat = uart.read(2)
-        #OLED display
-        if dat == b'X#':
-            for oledi in range(128):
-                for oledj in range(10):
-                    oled.pixel(oledi, oledj,0)
-            datoled_1 = uart.read(16)
-            stroled_1 = str(datoled_1)
-            stroled_1 = stroled_1.replace("b'", "")
-            stroled_1 = stroled_1.replace("'", "")
-            stroled_1 = stroled_1.replace("$", "")
-            oled.text(stroled_1, 0, 0)
-            oled.show()
-            print(stroled_1)
-        elif dat == b'Y#':
-            for oledi in range(128):
-                for oledj in range(10,20):
-                    oled.pixel(oledi, oledj,0)
-            datoled_2 = uart.read(16)
-            stroled_2 = str(datoled_2)
-            stroled_2 = stroled_2.replace("b'", "")
-            stroled_2 = stroled_2.replace("'", "")
-            stroled_2 = stroled_2.replace("$", "")
-            oled.text(stroled_2, 0, 10)
-            oled.show()
-            print(stroled_2)
-        elif dat == b'Z#':
-            for oledi in range(128):
-                for oledj in range(20,30):
-                    oled.pixel(oledi, oledj,0)
-            datoled_3 = uart.read(16)
-            stroled_3 = str(datoled_3)
-            stroled_3 = stroled_3.replace("b'", "")
-            stroled_3 = stroled_3.replace("'", "")
-            stroled_3 = stroled_3.replace("$", "")
-            oled.text(stroled_3, 0, 20)
-            oled.show()
-            print(stroled_3)
-        elif dat == b'W#':
-            BBuzzer = uart.read(1)
-            if BBuzzer == b'1':
-                BZ.duty_u16(500)
-                BZ.freq(277)
-            elif BBuzzer == b'2':
-                BZ.duty_u16(500)
-                BZ.freq(311)
-            elif BBuzzer == b'3':
-                BZ.duty_u16(500)
-                BZ.freq(370)
-            elif BBuzzer == b'4':
-                BZ.duty_u16(500)
-                BZ.freq(415)
-            elif BBuzzer == b'5':
-                BZ.duty_u16(500)
-                BZ.freq(466)
+def task_ultrasonic(task_name, state):
+    global g_distance, g_ultrasonic_state
+    print("start thread:", task_name)
+    while state:
+        try:
+            if g_ultrasonic_state:
+                g_distance = ultrasonic.Distance()
+                print("g_distance:", g_distance)
+        except:
+            print("ultrasonic error")
+            g_distance = 999
+            time.sleep(1)
+        time.sleep(.08)
+        if g_stop:
+            print("stop thread:", task_name)
+            return 0
+    print("stop thread:", task_name)
 
-    #car control
-    if dat == b'A#':
-        Motor.Car_Run(255,255)
-    elif dat == b'B#':
-        Motor.Car_Back(255,255)
-    elif dat == b'C#':
-        Motor.Car_Run(0,255)
-    elif dat == b'D#':
-        Motor.Car_Run(255,0)
-    elif dat == b'E#':
-        Motor.Car_Left(255,255)
-    elif dat == b'F#':
-        Motor.Car_Right(255,255)
-    elif dat == b'0#':
-        Motor.Car_Stop()
-    #music control
-    elif dat == b'1#':
-        BZ.duty_u16(500)
-        BZ.freq(262)
-    elif dat == b'2#':
-        BZ.duty_u16(500)
-        BZ.freq(294)
-    elif dat == b'3#':
-        BZ.duty_u16(500)
-        BZ.freq(330)
-    elif dat == b'4#':
-        BZ.duty_u16(500)
-        BZ.freq(349)
-    elif dat == b'5#':
-        BZ.duty_u16(500)
-        BZ.freq(392)
-    elif dat == b'6#':
-        BZ.duty_u16(500)
-        BZ.freq(440)
-    elif dat == b'7#':
-        BZ.duty_u16(500)
-        BZ.freq(494)
-    elif dat == b'8#':
-        BZ.duty_u16(500)
-        BZ.freq(523)
-    elif dat == b'O#':
-        BZ.duty_u16(0)
-    #car light
-    elif dat == b'G#':
-        pixels.fill(255,0,0)
-        pixels.show()
-    elif dat == b'H#':
-        pixels.fill(0,255,0)
-        pixels.show()
-    elif dat == b'I#':
-        pixels.fill(0,0,255)
-        pixels.show()
-    elif dat == b'J#':
-        pixels.fill(255,255,0)
-        pixels.show()
-    elif dat == b'K#':
-        pixels.fill(0,255,255)
-        pixels.show()
-    elif dat == b'L#':
-        pixels.fill(255,0,255)
-        pixels.show()
-    elif dat == b'N#':
-        water()
-    elif dat == b'P#':
-        horse()
-    elif dat == b'Q#':
-        breathing()
-    elif dat == b'M#':
-        pixels.fill(0,0,0)
-        pixels.show()
-        i = 0
-        brightness = 0
-        fadeAmount = 1
-    #mode
-    elif dat == b'S#':
-        line()
-    elif dat == b'T#':
-        avoid()
-    elif dat == b'U#':
-        voice()
-    elif dat == b'V#':
-        oled.fill(0)
-        oled.show()
-        pixels.fill(0,0,0)
-        pixels.show()
-        Motor.Car_Stop()
-        BZ.duty_u16(0)
-    time.sleep(0.01)
+# _thread.start_new_thread(task_ultrasonic, ("task_ultrasonic", True))
+
+try:
+    while True:
+        #receive data
+        while uart.any() > 0:
+            dat = uart.read(2)
+            #OLED display
+            if dat == b'X#':
+                for oledi in range(128):
+                    for oledj in range(10):
+                        oled.pixel(oledi, oledj, 0)
+                datoled_1 = uart.read(16)
+                stroled_1 = str(datoled_1)
+                stroled_1 = stroled_1.replace("b'", "")
+                stroled_1 = stroled_1.replace("'", "")
+                stroled_1 = stroled_1.replace("$", "")
+                oled.text(stroled_1, 0, 0)
+                oled.show()
+                print(stroled_1)
+            elif dat == b'Y#':
+                for oledi in range(128):
+                    for oledj in range(10,20):
+                        oled.pixel(oledi, oledj,0)
+                datoled_2 = uart.read(16)
+                stroled_2 = str(datoled_2)
+                stroled_2 = stroled_2.replace("b'", "")
+                stroled_2 = stroled_2.replace("'", "")
+                stroled_2 = stroled_2.replace("$", "")
+                oled.text(stroled_2, 0, 10)
+                oled.show()
+                print(stroled_2)
+            elif dat == b'Z#':
+                for oledi in range(128):
+                    for oledj in range(20,30):
+                        oled.pixel(oledi, oledj,0)
+                datoled_3 = uart.read(16)
+                stroled_3 = str(datoled_3)
+                stroled_3 = stroled_3.replace("b'", "")
+                stroled_3 = stroled_3.replace("'", "")
+                stroled_3 = stroled_3.replace("$", "")
+                oled.text(stroled_3, 0, 20)
+                oled.show()
+                print(stroled_3)
+            elif dat == b'W#':
+                BBuzzer = uart.read(1)
+                if BBuzzer == b'1':
+                    BZ.duty_u16(500)
+                    BZ.freq(277)
+                elif BBuzzer == b'2':
+                    BZ.duty_u16(500)
+                    BZ.freq(311)
+                elif BBuzzer == b'3':
+                    BZ.duty_u16(500)
+                    BZ.freq(370)
+                elif BBuzzer == b'4':
+                    BZ.duty_u16(500)
+                    BZ.freq(415)
+                elif BBuzzer == b'5':
+                    BZ.duty_u16(500)
+                    BZ.freq(466)
+
+        #car control
+        if dat == b'A#':
+            Motor.Car_Run(255,255)
+        elif dat == b'B#':
+            Motor.Car_Back(255,255)
+        elif dat == b'C#':
+            Motor.Car_Run(0,255)
+        elif dat == b'D#':
+            Motor.Car_Run(255,0)
+        elif dat == b'E#':
+            Motor.Car_Left(255,255)
+        elif dat == b'F#':
+            Motor.Car_Right(255,255)
+        elif dat == b'0#':
+            Motor.Car_Stop()
+        #music control
+        elif dat == b'1#':
+            BZ.duty_u16(500)
+            BZ.freq(262)
+        elif dat == b'2#':
+            BZ.duty_u16(500)
+            BZ.freq(294)
+        elif dat == b'3#':
+            BZ.duty_u16(500)
+            BZ.freq(330)
+        elif dat == b'4#':
+            BZ.duty_u16(500)
+            BZ.freq(349)
+        elif dat == b'5#':
+            BZ.duty_u16(500)
+            BZ.freq(392)
+        elif dat == b'6#':
+            BZ.duty_u16(500)
+            BZ.freq(440)
+        elif dat == b'7#':
+            BZ.duty_u16(500)
+            BZ.freq(494)
+        elif dat == b'8#':
+            BZ.duty_u16(500)
+            BZ.freq(523)
+        elif dat == b'O#':
+            BZ.duty_u16(0)
+        #car light
+        elif dat == b'G#':
+            pixels.fill(255,0,0)
+            pixels.show()
+        elif dat == b'H#':
+            pixels.fill(0,255,0)
+            pixels.show()
+        elif dat == b'I#':
+            pixels.fill(0,0,255)
+            pixels.show()
+        elif dat == b'J#':
+            pixels.fill(255,255,0)
+            pixels.show()
+        elif dat == b'K#':
+            pixels.fill(0,255,255)
+            pixels.show()
+        elif dat == b'L#':
+            pixels.fill(255,0,255)
+            pixels.show()
+        elif dat == b'N#':
+            water()
+        elif dat == b'P#':
+            horse()
+        elif dat == b'Q#':
+            breathing()
+        elif dat == b'M#':
+            pixels.fill(0,0,0)
+            pixels.show()
+            i = 0
+            brightness = 0
+            fadeAmount = 1
+        #mode
+        elif dat == b'S#':
+            line()
+        elif dat == b'T#':
+            avoid()
+        elif dat == b'U#':
+            voice()
+        elif dat == b'V#':
+            oled.fill(0)
+            oled.show()
+            pixels.fill(0,0,0)
+            pixels.show()
+            Motor.Car_Stop()
+            BZ.duty_u16(0)
+        time.sleep(0.01)
+except KeyboardInterrupt:
+    g_stop = 1
+    pixels.fill(0,0,0)
+    oled.fill(0)
+    oled.show()
+    Motor.Car_Stop()
+    BZ.duty_u16(0)
+except Exception as e:
+    g_stop = 1
+    oled.text('Program Error', 0, 0)
+    oled.show()
+    pixels.fill(0,0,0)
+    Motor.Car_Stop()
+    BZ.duty_u16(0)
+    print("Program Error:", Exception)
+
+
 
